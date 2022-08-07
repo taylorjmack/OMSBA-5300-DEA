@@ -3,6 +3,7 @@ library(purrr)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
+library(fixest)
 
 setwd('./Data/')
 trend_data <- list.files(pattern = 'trends_up_to_', full.names = TRUE) %>%
@@ -28,12 +29,16 @@ id_name_link <- id_name_link[,-4]
       
 trend_data <- inner_join(trend_data,id_name_link,by= "schname")
 trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID","opeid"="OPEID"))
-trend_data$'md_earn_wne_p10-REPORTED-EARNINGS' <- as.numeric(trend_data$'md_earn_wne_p10-REPORTED-EARNINGS')
 
-trend_data <- trend_data %>% group_by(schname,year(month)) %>%
+trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                mutate(n = n()) %>%
                mutate(year = year(month)) %>%
+               mutate(month_number = month(month)) %>%
+               mutate(year_month = format(month,"%Y-%m")) %>%
                mutate(median_salary = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
+               mutate(scorecard_live = case_when
+               (year_month < '2015-09'~ 0,
+                year_month >= '2015-09' ~ 1)) %>%
                mutate(income_category = case_when
                (median_salary <= 30000 ~ "low",
                 median_salary > 30000 &
@@ -41,14 +46,13 @@ trend_data <- trend_data %>% group_by(schname,year(month)) %>%
                 median_salary >= 75000 ~ "high")) %>%
                filter(is.na(median_salary) == FALSE)
 
-trend_data %>% group_by(income_category) %>%
-               summarize(avg_students = mean(n)) %>%  
-               ggplot(mapping = aes(x = income_category,y= avg_students)) +
-              geom_point()
+trend_data %>% group_by(year_month,income_category) %>%
+               summarize(std_dev_activity = sd(n)) %>%  
+               ggplot(mapping = aes(x = year_month,y= std_dev_activity, group= income_category)) +
+              geom_line(aes(color=income_category)) + geom_point() 
+              
+reg  <- feols(data= trend_data,n~income_category+scorecard_live)
+etable(reg)
 
-
-
-trend_data %>% group_by(schname) %>%
-               summarize(std_index = mean(standard_index)) %>%
          
 
