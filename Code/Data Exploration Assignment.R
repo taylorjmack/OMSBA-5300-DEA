@@ -18,4 +18,13 @@ trend_data$monthorweek <- str_sub(trend_data$monthorweek,1,10) %>%
                           floor_date(unit= 'month')
 colnames(trend_data)[5] <- "month"
 
+trend_data <- trend_data %>% group_by(schname,keyword) %>%
+              mutate(standard_index = (index - mean(index))/sd(index))
 
+id_name_link <- group_by(id_name_link,schname) %>%
+                mutate(n = n()) %>%
+                filter(n <= 1)
+id_name_link <- id_name_link[,-4]
+      
+              
+            
