@@ -39,6 +39,7 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                mutate(scorecard_live = case_when
                (year_month < '2015-09'~ 0,
                 year_month >= '2015-09' ~ 1)) %>%
+               mutate(numeric = is_numeric(median_salary)) %>%
                mutate(income_category = case_when
                (median_salary <= 30000 ~ "low",
                 median_salary > 30000 &
@@ -51,7 +52,7 @@ trend_data %>% group_by(year_month,income_category) %>%
                ggplot(mapping = aes(x = year_month,y= std_dev_activity, group= income_category)) +
               geom_line(aes(color=income_category)) + geom_point() 
               
-reg  <- feols(data= trend_data,n~income_category+scorecard_live)
+reg  <- feols(data= trend_data,n~n*income_category+scorecard_live)
 etable(reg)
 
          
