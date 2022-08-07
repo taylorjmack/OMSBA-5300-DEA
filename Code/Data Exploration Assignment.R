@@ -28,4 +28,27 @@ id_name_link <- id_name_link[,-4]
       
 trend_data <- inner_join(trend_data,id_name_link,by= "schname")
 trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID","opeid"="OPEID"))
-            
+trend_data$'md_earn_wne_p10-REPORTED-EARNINGS' <- as.numeric(trend_data$'md_earn_wne_p10-REPORTED-EARNINGS')
+
+trend_data <- trend_data %>% group_by(schname,year(month)) %>%
+               mutate(n = n()) %>%
+               mutate(year = year(month)) %>%
+               mutate(median_salary = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
+               mutate(income_category = case_when
+               (median_salary <= 30000 ~ "low",
+                median_salary > 30000 &
+                median_salary < 75000 ~ "medium",
+                median_salary >= 75000 ~ "high")) %>%
+               filter(is.na(median_salary) == FALSE)
+
+trend_data %>% group_by(income_category) %>%
+               summarize(avg_students = mean(n)) %>%  
+               ggplot(mapping = aes(x = income_category,y= avg_students)) +
+              geom_point()
+
+
+
+trend_data %>% group_by(schname) %>%
+               summarize(std_index = mean(standard_index)) %>%
+         
+
