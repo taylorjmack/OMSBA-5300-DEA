@@ -26,5 +26,6 @@ id_name_link <- group_by(id_name_link,schname) %>%
                 filter(n <= 1)
 id_name_link <- id_name_link[,-4]
       
-              
+trend_data <- inner_join(trend_data,id_name_link,by= "schname")
+trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID","opeid"="OPEID"))
             
