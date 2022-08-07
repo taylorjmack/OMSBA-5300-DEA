@@ -39,13 +39,14 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                mutate(scorecard_live = case_when
                (year_month < '2015-09'~ 0,
                 year_month >= '2015-09' ~ 1)) %>%
-               mutate(numeric = is_numeric(median_salary)) %>%
+               filter(!is.na(as.numeric(median_salary))) %>%
                mutate(income_category = case_when
                (median_salary <= 30000 ~ "low",
                 median_salary > 30000 &
                 median_salary < 75000 ~ "medium",
                 median_salary >= 75000 ~ "high")) %>%
                filter(is.na(median_salary) == FALSE)
+
 
 trend_data %>% group_by(year_month,income_category) %>%
                summarize(std_dev_activity = sd(n)) %>%  
