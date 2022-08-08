@@ -21,19 +21,13 @@ library(tidyverse)
 library(lubridate)
 library(fixest)
 ```
-## Setting Working Directory
-
-In the following code chunk, will set the working directory to the "Data" folder
-
-```{r}
-setwd('./Data/')
-```
 
 ## Data Sources
 
 The following code chunk will create the various data sources for the analysis
 
 ```{r}
+setwd('./Data/')
 trend_data <- list.files(pattern = 'trends_up_to_', full.names = TRUE) %>%
            map_df(read_csv) %>%
            bind_rows()
@@ -66,7 +60,7 @@ trend_data <- trend_data %>% group_by(schname,keyword) %>%
 ```{r}
 id_name_link <- group_by(id_name_link,schname) %>%
                 mutate(n = n()) %>%
-                filter(n = 1)
+                filter(n == 1)
 id_name_link <- id_name_link[,-4]
 ```
 
@@ -78,15 +72,42 @@ trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID",
 ```
 
 ## Cleaning the datasource
+  Activities
   a. Adding a column that is a count of all of the rows for each month
   b. Adding a column for the month number
   c. Formatting month to no longer include the date field
-  d. Adding a field to be a mirror of the student's medium wage 10 years after graduation
+  d. Adding the "median_salary" field to be a mirror of the student's medium wage 10 years after        graduation
   e. Creating a binary field for when the scorecard went live, 0 being before 1 being after
   f. Filtered out non-numeric medium datapoints
   g. Creating a column to put incomes into "low", "medium" and "high" groupings
   h. filtered out any 'NA's that potentially were still in the dataset on the 'median_salary'
      field 
+  
+  Justification
+  a. I wanted to have a column that was a count of all the activity for each school and keyword         that was aggregated for each month.
+  b. This could be a useful to have month number seperated if anyone were to do a seasonality
+     regression.
+  c. Since I used the floor_date on month field it was misleading to have all of the data display       like it occurred on the first of the month. Formatting month to be "yyyy-mm" would eliminate
+     that potential misunderstanding.
+  d. I wanted to created a mirror field of the "md_earn_wne_p10-REPORTED-EARNINGS" field, because
+     1) I didn't want to type out that long field more than once
+     2) If I were to do any sort of transformation I didn't want to touch imported data
+     I felt that renaming that field would cause more confusion and users wouldn't be able
+     to rely on the 'scorecard_dict' for more info regarding the field.
+  e. I wanted to have a binary that made it clear when the scorecard went live, with the ultimate
+     goal of using that variable in my regression.
+  f. I discovered that there were non-numerical values in the "median_salary" field, including 
+     these text values ultimately skewed my regression model. I thought that the easiest way to 
+     remove those values would be to try and convert the column into a numeric, so the lines that
+     errored out were the text values. Since I was using the error out method I included a 
+     'suppressWarnings()' function to not bombard users with error messages.
+  g. I wanted to group the median salaries for each college into 3 ranges: low, medium, and high.
+     The ranges were:
+     Low : 0 - 30,000
+     Medium : 30,001 - 74,999
+     high : 75,000+
+     I found that there some other fields that followed the above ranges. I also found that these       ranges were fairly common in the workplace. I also found that the middle class is considered
+     to be 30,000 to around 75,000-90,000, but for my analysis I wanted to be slightly                  conservative, so I went with the lowest value on the top end of the middle class. 
 
 ```{r}
 trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
@@ -96,9 +117,9 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                mutate(month = format(month,"%Y-%m")) %>%
                mutate(median_salary = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
                mutate(scorecard_live = case_when
-               (year_month < '2015-09'~ 0,
-                year_month >= '2015-09' ~ 1)) %>%
-               filter(!is.na(as.numeric(median_salary))) %>%
+               (month < '2015-09'~ 0,
+                month >= '2015-09' ~ 1)) %>%
+               filter(!is.na(suppressWarnings(as.numeric(median_salary)))) %>%
                mutate(income_category = case_when
                (median_salary <= 30000 ~ "low",
                 median_salary > 30000 &
@@ -107,30 +128,29 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                filter(is.na(median_salary) == FALSE)
 ```
 
-
-
-## 
+## Plotting the summarized 'n' variable by month
 
 ```{r}
-
+trend_data %>% group_by(month,schname,keyword,income_category) %>%
+  summarize(total_search_activity = sum(n)) %>%
+  ggplot(mapping = aes(x = month,y= total_search_activity, group= income_category)) +
+  geom_line(aes(color=income_category)) + geom_point() 
 ```
 
-
-
-## 
+## Plotting the average standard index for each school and keyword
 
 ```{r}
-
+trend_data %>% group_by(month,schname,keyword,income_category) %>%
+  summarize(avg_std_index = mean(standard_index)) %>%  
+  ggplot(mapping = aes(x = month,y= avg_std_index, group= income_category)) +
+  geom_line(aes(color=income_category)) + geom_point() 
 ```
 
-
-## 
+## The Regression
 
 ```{r}
-
+reg  <- feols(data= trend_data,log(n)~income_category*scorecard_live + standard_index)
+etable(reg)
+wald(reg)
 ```
 
-
-
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
