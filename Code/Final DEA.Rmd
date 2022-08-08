@@ -108,6 +108,8 @@ trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID",
      high : 75,000+
      I found that there some other fields that followed the above ranges. I also found that these       ranges were fairly common in the workplace. I also found that the middle class is considered
      to be 30,000 to around 75,000-90,000, but for my analysis I wanted to be slightly                  conservative, so I went with the lowest value on the top end of the middle class. 
+  h. I threw on another na filter just to catch anything that wasn't caught from the filter on 
+     step f.
 
 ```{r}
 trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
@@ -130,6 +132,10 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
 
 ## Plotting the summarized 'n' variable by month
 
+I wanted to take a look at the total population for search activity, field 'n', to see if I could
+spot any oddities with the data to help me identify if I needed to add any constraints to the 
+regression. The 'n' values seemed sporadic and violent movement, I felt that I would need to throw a log on the n field to help smooth out the regression. Also the ggplot resembled a log graph, with a lot of noise, because of the intense upswing at the end of the data plots.
+
 ```{r}
 trend_data %>% group_by(month,schname,keyword,income_category) %>%
   summarize(total_search_activity = sum(n)) %>%
@@ -138,6 +144,8 @@ trend_data %>% group_by(month,schname,keyword,income_category) %>%
 ```
 
 ## Plotting the average standard index for each school and keyword
+
+I ultimately planned on using standard index in my regression, and I wanted to see what the treatment could be. Since there are negative values I threw out logs as an option of handling. 
 
 ```{r}
 trend_data %>% group_by(month,schname,keyword,income_category) %>%
@@ -149,8 +157,12 @@ trend_data %>% group_by(month,schname,keyword,income_category) %>%
 ## The Regression
 
 ```{r}
-reg  <- feols(data= trend_data,log(n)~income_category*scorecard_live + standard_index)
-etable(reg)
+reg <- feols(data= trend_data,log(n)~income_category*scorecard_live + standard_index,vcov = 'hetero')
+reg2  <- feols(data= trend_data,log(n)~income_category*scorecard_live + I(standard_index^2),vcov = 'hetero')
+reg3 <- feols(data= trend_data,log(n)~income_category*scorecard_live | standard_index,vcov = 'hetero')
+etable(reg,reg2,reg3)
 wald(reg)
+wald(reg2)
+wald(reg3)
 ```
 
