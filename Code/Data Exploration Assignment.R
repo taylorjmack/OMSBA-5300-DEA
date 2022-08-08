@@ -54,11 +54,11 @@ trend_data %>% group_by(year_month,schname,keyword,income_category) %>%
               geom_line(aes(color=income_category)) + geom_point() 
               
 trend_data %>% group_by(year_month,schname,keyword,income_category) %>%
-  summarize(total_search_activity = sum(n)) %>%  
+  summarize(total_search_activity = sum(n)) %>%
   ggplot(mapping = aes(x = year_month,y= total_search_activity, group= income_category)) +
   geom_line(aes(color=income_category)) + geom_point() 
 
-reg  <- feols(data= trend_data,log(n)~income_category+scorecard_live+standard_index)
+reg  <- feols(data= trend_data,log(n)~income_category*scorecard_live+standard_index + region)
 etable(reg)
 
          
