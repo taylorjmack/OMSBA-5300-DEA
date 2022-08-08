@@ -1,10 +1,12 @@
+
+```{r}
 library(plyr)
 library(purrr)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(fixest)
-
+```
 setwd('./Data/')
 trend_data <- list.files(pattern = 'trends_up_to_', full.names = TRUE) %>%
            map_df(read_csv) %>%
