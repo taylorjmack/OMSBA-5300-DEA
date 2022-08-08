@@ -48,12 +48,17 @@ trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
                filter(is.na(median_salary) == FALSE)
 
 
-trend_data %>% group_by(year_month,income_category) %>%
+trend_data %>% group_by(year_month,schname,keyword,income_category) %>%
                summarize(std_dev_activity = sd(n)) %>%  
                ggplot(mapping = aes(x = year_month,y= std_dev_activity, group= income_category)) +
               geom_line(aes(color=income_category)) + geom_point() 
               
-reg  <- feols(data= trend_data,n~n*income_category+scorecard_live)
+trend_data %>% group_by(year_month,schname,keyword,income_category) %>%
+  summarize(total_search_activity = sum(n)) %>%  
+  ggplot(mapping = aes(x = year_month,y= total_search_activity, group= income_category)) +
+  geom_line(aes(color=income_category)) + geom_point() 
+
+reg  <- feols(data= trend_data,log(n)~income_category+scorecard_live+standard_index)
 etable(reg)
 
          
