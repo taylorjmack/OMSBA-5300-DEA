@@ -158,6 +158,15 @@ trend_data %>% group_by(month,schname,keyword,income_category) %>%
 
 ## The Regressions
 
+Below are the regressions that I ran, and I tried a few different methods on how to treat standard_index, but will ultimately go with 'reg' as my primary regression. 'reg2' seemed to have a mildly worst fit that 'reg', and 'reg3' should be avoid since it resulted in collinearity on the 'income_categorymedium' variable.
+
+Our question was if the release of the scorecard shifted interest to high-earning schools compared to low-earning schools. To answer this question our dependent variable will be 'n', but based on what I indicated above we would need our dependent variable to actually be log(n). Since the key relationship we want to see is if the scorecard impact 'income_category', thus I was interested in the interaction between the two variables, which is why on my regression I used 'income_category*scorecard_live' which takes the low, medium, and high variables and has them interact with the binary variable indicating whether or not the scorecard was live yet. Lastly, I was interested in the interaction of the standard_index on the model. 
+
+Results:
+What I found is that after the scorecard was live there was not a shift in interest for high median income schools, but instead saw low/medium income schools gaining a larger percent increase in interest. After the scorecard was live low income schools saw an increase in attention by .29, while medium income schools only saw a .23 increase. 
+
+
+
 ```{r}
 reg <- feols(data= trend_data,log(n)~income_category*scorecard_live + standard_index,vcov = 'hetero')
 reg2  <- feols(data= trend_data,log(n)~income_category*scorecard_live + I(standard_index^2),vcov = 'hetero')
