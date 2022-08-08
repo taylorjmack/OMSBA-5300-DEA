@@ -9,22 +9,128 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Libraries
+The following code chunk will load all of the needed libraries used on the 
+analysis
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r}
+library(plyr)
+library(purrr)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(fixest)
+```
+## Setting Working Directory
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+In the following code chunk, will set the working directory to the "Data" folder
 
-```{r cars}
-summary(cars)
+```{r}
+setwd('./Data/')
 ```
 
-## Including Plots
+## Data Sources
 
-You can also embed plots, for example:
+The following code chunk will create the various data sources for the analysis
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+trend_data <- list.files(pattern = 'trends_up_to_', full.names = TRUE) %>%
+           map_df(read_csv) %>%
+           bind_rows()
+scorecard_dict <- read_csv('./CollegeScorecardDataDictionary-09-08-2015.csv')
+id_name_link <- read_csv('./id_name_link.csv')
+most_recent_cohorts <- read_csv('./Most+Recent+Cohorts+(Scorecard+Elements).csv')
 ```
+## Formatting the 'monthorweek' field
+
+Parsing down the 'monthorweek' field from a system datetime to a yyyy-mm-dd format,
+then rounding down every date to be the first of each month since the analysis is at the
+yyyy-mm level. Also renaming 'monthorweek' to 'month' to be more indicative of what the data is
+
+```{r}
+trend_data$monthorweek <- str_sub(trend_data$monthorweek,1,10) %>%
+                          ymd() %>%
+                          floor_date(unit= 'month')
+colnames(trend_data)[5] <- "month"
+```
+
+## Standardizing the index field
+
+```{r}
+trend_data <- trend_data %>% group_by(schname,keyword) %>%
+              mutate(standard_index = (index - mean(index))/sd(index))
+```
+
+## Removing Colleges that have the same 'schname' value. 
+
+```{r}
+id_name_link <- group_by(id_name_link,schname) %>%
+                mutate(n = n()) %>%
+                filter(n = 1)
+id_name_link <- id_name_link[,-4]
+```
+
+## Joining all of the datasets together
+
+```{r}
+trend_data <- inner_join(trend_data,id_name_link,by= "schname")
+trend_data <- inner_join(trend_data,most_recent_cohorts,by= c("unitid"="UNITID","opeid"="OPEID"))
+```
+
+## Cleaning the datasource
+  a. Adding a column that is a count of all of the rows for each month
+  b. Adding a column for the month number
+  c. Formatting month to no longer include the date field
+  d. Adding a field to be a mirror of the student's medium wage 10 years after graduation
+  e. Creating a binary field for when the scorecard went live, 0 being before 1 being after
+  f. Filtered out non-numeric medium datapoints
+  g. Creating a column to put incomes into "low", "medium" and "high" groupings
+  h. filtered out any 'NA's that potentially were still in the dataset on the 'median_salary'
+     field 
+
+```{r}
+trend_data <- trend_data %>% group_by(schname,keyword,month) %>%
+               mutate(n = n()) %>%
+               mutate(year = year(month)) %>%
+               mutate(month_number = month(month)) %>%
+               mutate(month = format(month,"%Y-%m")) %>%
+               mutate(median_salary = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
+               mutate(scorecard_live = case_when
+               (year_month < '2015-09'~ 0,
+                year_month >= '2015-09' ~ 1)) %>%
+               filter(!is.na(as.numeric(median_salary))) %>%
+               mutate(income_category = case_when
+               (median_salary <= 30000 ~ "low",
+                median_salary > 30000 &
+                median_salary < 75000 ~ "medium",
+                median_salary >= 75000 ~ "high")) %>%
+               filter(is.na(median_salary) == FALSE)
+```
+
+
+
+## 
+
+```{r}
+
+```
+
+
+
+## 
+
+```{r}
+
+```
+
+
+## 
+
+```{r}
+
+```
+
+
+
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
